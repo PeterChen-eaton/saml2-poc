@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAML2 POC - 用户仪表板</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+        <div class="container">
+            <a class="navbar-brand" href="/">SAML2 POC</a>
+            <div class="navbar-nav ms-auto">
+                <form th:action="@{/logout}" method="post" style="display: inline;">
+                    <button type="submit" class="btn btn-outline-light">退出登录</button>
+                </form>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-5">
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>用户仪表板</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-success">
+                            <strong>登录成功！</strong> 您已通过SAML2身份验证。
+                        </div>
+                        
+                        <h4>用户信息</h4>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5>基本信息</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <p><strong>用户名:</strong> <span th:text="${username}">N/A</span></p>
+                                        <p><strong>认证方式:</strong> SAML2</p>
+                                        <p><strong>登录时间:</strong> <span id="loginTime"></span></p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="card">
+                                    <div class="card-header">
+                                        <h5>SAML2 属性</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <div th:if="${attributes}">
+                                            <div th:each="attr : ${attributes}">
+                                                <p>
+                                                    <strong th:text="${attr.key}">Attribute Name</strong>: 
+                                                    <span th:text="${attr.value}">Attribute Value</span>
+                                                </p>
+                                            </div>
+                                        </div>
+                                        <div th:unless="${attributes}">
+                                            <p class="text-muted">无可用属性</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4">
+                            <h4>可用操作</h4>
+                            <div class="btn-group" role="group">
+                                <a href="/" class="btn btn-outline-primary">返回首页</a>
+                                <a href="/saml2/service-provider-metadata/okta" class="btn btn-outline-info" target="_blank">查看SP元数据</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.getElementById('loginTime').textContent = new Date().toLocaleString('zh-CN');
+    </script>
+</body>
+</html>

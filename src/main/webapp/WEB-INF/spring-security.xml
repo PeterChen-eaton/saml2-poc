@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xmlns:sec="http://www.springframework.org/schema/security"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans
+           http://www.springframework.org/schema/beans/spring-beans.xsd
+           http://www.springframework.org/schema/security
+           http://www.springframework.org/schema/security/spring-security.xsd">
+
+    <!-- HTTP Security Configuration -->
+    <sec:http auto-config="true" use-expressions="true" request-matcher="ant">
+        <!-- Permit access to static resources and public pages -->
+        <sec:intercept-url pattern="/" access="permitAll" />
+        <sec:intercept-url pattern="/home" access="permitAll" />
+        <sec:intercept-url pattern="/login" access="permitAll" />
+        <sec:intercept-url pattern="/error" access="permitAll" />
+        <sec:intercept-url pattern="/css/**" access="permitAll" />
+        <sec:intercept-url pattern="/js/**" access="permitAll" />
+        <sec:intercept-url pattern="/images/**" access="permitAll" />
+        <!-- SAML2 metadata endpoint -->
+        <sec:intercept-url pattern="/saml2/**" access="permitAll" />
+        
+        <!-- Require authentication for all other requests -->
+        <sec:intercept-url pattern="/**" access="isAuthenticated()" />
+
+        <!-- SAML2 Login Configuration -->
+        <sec:saml2-login />
+
+        <!-- SAML2 Logout Configuration -->
+        <sec:saml2-logout />
+
+        <!-- Traditional Logout Configuration -->
+        <sec:logout logout-success-url="/" />
+
+        <!-- CSRF Protection -->
+        <sec:csrf />
+    </sec:http>
+
+    <!-- Authentication Manager Configuration -->
+    <sec:authentication-manager>
+        <!-- SAML2 Authentication Provider will be auto-configured -->
+        <!-- Add a simple in-memory user for testing fallback -->
+        <sec:authentication-provider>
+            <sec:user-service>
+                <sec:user name="admin" password="{noop}admin" authorities="ROLE_USER,ROLE_ADMIN" />
+                <sec:user name="user" password="{noop}user" authorities="ROLE_USER" />
+            </sec:user-service>
+        </sec:authentication-provider>
+    </sec:authentication-manager>
+
+</beans>
