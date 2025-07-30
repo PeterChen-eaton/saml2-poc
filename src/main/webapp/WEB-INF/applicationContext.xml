@@ -11,6 +11,8 @@
            http://www.springframework.org/schema/mvc
            http://www.springframework.org/schema/mvc/spring-mvc.xsd">
 
+    <context:property-placeholder location="classpath:application.properties" />
+
     <!-- Component scan for service layer (exclude controllers as they are handled by dispatcher servlet) -->
     <context:component-scan base-package="com.example.saml2">
         <context:exclude-filter type="annotation" expression="org.springframework.stereotype.Controller" />
@@ -20,11 +22,9 @@
     <bean id="saml2Config" class="com.example.saml2.config.Saml2MetadataConfig" />
 
     <!-- Handler Mapping Introspector for Spring Security MVC integration -->
-    <bean id="mvcHandlerMappingIntrospector" 
-          class="org.springframework.web.servlet.handler.HandlerMappingIntrospector" />
+    <bean id="mvcHandlerMappingIntrospector" class="org.springframework.web.servlet.handler.HandlerMappingIntrospector" />
 
     <!-- SAML2 Metadata Resolver -->
-    <bean id="saml2MetadataResolver" 
-          class="org.springframework.security.saml2.provider.service.metadata.OpenSamlMetadataResolver" />
+    <bean id="saml2MetadataResolver" class="org.springframework.security.saml2.provider.service.metadata.OpenSamlMetadataResolver" />
 
 </beans>

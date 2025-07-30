@@ -57,10 +57,70 @@ mvn clean package
 
 ## 🔧 SAML2 配置
 
-### IdP 配置
+### 两种IdP配置方式
+
+#### 方式1: 直接配置（推荐，无需metadata文件）
+如果您知道IdP的SSO URL，可以直接配置：
+
+```properties
+# 必需：IdP的SSO URL
+saml2.idp.sso-url=https://your-idp.example.com/sso/saml
+
+# 可选：IdP的Entity ID（如果不提供，将使用SSO URL）
+saml2.idp.entity-id=https://your-idp.example.com
+
+# 可选：单点登出URL
+saml2.idp.slo-url=https://your-idp.example.com/slo/saml
+
+# 注释掉metadata配置
+# saml2.idp.metadata-location=
+```
+
+**常用IdP配置示例：**
+```properties
+# Keycloak
+saml2.idp.sso-url=http://localhost:8090/auth/realms/demo/protocol/saml
+
+# Azure AD
+saml2.idp.sso-url=https://login.microsoftonline.com/{tenant-id}/saml2
+
+# ADFS
+saml2.idp.sso-url=https://your-adfs.company.com/adfs/ls/
+
+# Okta
+saml2.idp.sso-url=https://your-org.okta.com/app/your-app-id/sso/saml
+```
+
+#### IdP签名验证配置（推荐）
+为了确保安全性，强烈建议配置IdP证书来验证SAML响应签名：
+
+```properties
+# IdP签名验证证书（从IdP获取）
+saml2.idp.verification-cert=-----BEGIN CERTIFICATE-----
+MIICmTCCAYECBgGDdOjmNTANBgkqhkiG9w0BAQsFADA...
+-----END CERTIFICATE-----
+
+# 或使用证书文件路径
+# saml2.idp.verification-cert-location=classpath:certificates/idp-cert.pem
+```
+
+**获取IdP证书的方法：**
+- **Okta**: 应用设置 → Sign On → View IdP metadata → 复制X509Certificate内容
+- **Azure AD**: 单一登录 → SAML签名证书 → 下载证书(Base64)
+- **ADFS**: 服务 → 证书 → 导出Token-signing证书
+- **Keycloak**: Realm Settings → Keys → 复制RSA签名证书
+
+> 📖 详细配置指南请参考：[docs/idp-signature-setup.md](docs/idp-signature-setup.md)
+
+#### 方式2: 使用IdP Metadata文件（传统方式）
 将IdP提供的metadata XML文件放置在：
 ```
 src/main/resources/saml2/idp-metadata.xml
+```
+
+然后配置：
+```properties
+saml2.idp.metadata-location=saml2/idp-metadata.xml
 ```
 
 **获取方式：**
@@ -75,9 +135,6 @@ saml2.sp.registration-id=default
 saml2.sp.entity-id=http://localhost:8080/saml2/service-provider-metadata/default
 saml2.sp.acs-url=http://localhost:8080/login/saml2/sso/default
 saml2.sp.slo-url=http://localhost:8080/logout/saml2/slo
-
-# IdP metadata位置
-saml2.idp.metadata-location=saml2/idp-metadata.xml
 
 # 可选：SP证书配置（用于在metadata中显示证书信息）
 saml2.sp.keystore.location=classpath:certificates/sp-keystore.p12

@@ -11,7 +11,7 @@ import org.springframework.security.saml2.core.Saml2X509Credential;
 import org.springframework.security.saml2.provider.service.registration.InMemoryRelyingPartyRegistrationRepository;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistration;
 import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrationRepository;
-import org.springframework.security.saml2.provider.service.registration.RelyingPartyRegistrations;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.security.KeyStore;
@@ -19,6 +19,7 @@ import java.security.PrivateKey;
 import java.security.cert.X509Certificate;
 
 @Configuration
+@Component
 public class Saml2MetadataConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(Saml2MetadataConfig.class);
@@ -33,8 +34,22 @@ public class Saml2MetadataConfig {
     @Value("${saml2.sp.slo-url:http://localhost:8080/logout/saml2/slo}")
     private String sloUrl;
     
-    @Value("${saml2.idp.metadata-location:saml2/idp-metadata.xml}")
+    @Value("${saml2.idp.metadata-location:}")
     private String metadataLocation;
+    
+    // IdP直接配置（不使用metadata时）
+    @Value("${saml2.idp.entity-id:}")
+    private String idpEntityId;
+    
+    @Value("${saml2.idp.sso-url:}")
+    private String idpSsoUrl;
+    
+    @Value("${saml2.idp.slo-url:}")
+    private String idpSloUrl;
+    
+    // IdP证书配置（用于验证签名）
+    @Value("${saml2.idp.verification-cert-location:}")
+    private String idpVerificationCertLocation;
 
     // SP证书配置（可选）
     @Value("${saml2.sp.keystore.location:classpath:certificates/sp-keystore.p12}")
@@ -54,14 +69,15 @@ public class Saml2MetadataConfig {
     public RelyingPartyRegistrationRepository relyingPartyRegistrationRepository() throws IOException {
         logger.info("Initializing SAML2 RelyingPartyRegistrationRepository...");
         
-        // 检查metadata文件是否存在
-        ClassPathResource metadataResource = new ClassPathResource(metadataLocation);
+        RelyingPartyRegistration.Builder builder;
         
-        // 从metadata文件加载IdP配置
-        logger.info("Loading IdP metadata from: " + metadataLocation);
-        RelyingPartyRegistration.Builder builder = RelyingPartyRegistrations
-            .fromMetadataLocation(metadataResource.getURL().toString())
-            .registrationId(registrationId);
+        // 优先使用直接配置，如果没有则尝试使用metadata
+        if (isDirectConfigurationProvided()) {
+            logger.info("Using direct IdP configuration (SSO URL: {})", idpSsoUrl);
+            builder = createFromDirectConfiguration();
+        } else {
+            throw new IllegalStateException("Either IdP SSO URL or metadata location must be provided");
+        }
         
         // 配置SP证书（用于metadata显示）
         Saml2X509Credential signingCredential = loadSpCertificate();
@@ -172,6 +188,98 @@ public class Saml2MetadataConfig {
             return keystore;
         } catch (Exception e) {
             logger.error("Failed to load keystore from: " + keystoreLocation, e);
+            return null;
+        }
+    }
+    
+    /**
+     * 检查是否提供了直接配置
+     */
+    private boolean isDirectConfigurationProvided() {
+        return idpSsoUrl != null && !idpSsoUrl.trim().isEmpty();
+    }
+
+    /**
+     * 使用直接配置创建RelyingPartyRegistration.Builder
+     */
+    private RelyingPartyRegistration.Builder createFromDirectConfiguration() {
+        logger.info("Creating SAML2 configuration from direct IdP settings");
+        
+        RelyingPartyRegistration.Builder builder = RelyingPartyRegistration
+            .withRegistrationId(registrationId)
+            .assertingPartyDetails(party -> party
+                .entityId(idpEntityId != null && !idpEntityId.trim().isEmpty() ? idpEntityId : idpSsoUrl)
+                .singleSignOnServiceLocation(idpSsoUrl)
+                .wantAuthnRequestsSigned(false)  // SP不要求对AuthnRequest签名
+                .verificationX509Credentials(creds -> {
+                    // 加载IdP验证证书
+                    Saml2X509Credential verificationCredential = loadIdpVerificationCertificate();
+                    if (verificationCredential != null) {
+                        creds.add(verificationCredential);
+                        logger.info("IdP verification certificate loaded successfully");
+                    } else {
+                        logger.warn("No IdP verification certificate configured - SAML responses will not be verified");
+                    }
+                })
+            );
+            
+        // 如果提供了SLO URL，添加单点登出配置
+        if (idpSloUrl != null && !idpSloUrl.trim().isEmpty()) {
+            builder.assertingPartyDetails(party -> party
+                .singleLogoutServiceLocation(idpSloUrl)
+            );
+        }
+        
+        return builder;
+    }
+    
+    /**
+     * 加载IdP验证证书
+     */
+    private Saml2X509Credential loadIdpVerificationCertificate() {
+        try {
+            X509Certificate certificate = null;
+
+            if (idpVerificationCertLocation != null && !idpVerificationCertLocation.trim().isEmpty()) {
+                certificate = loadCertificateFromFile(idpVerificationCertLocation);
+                logger.info("IdP verification certificate loaded from file: {}", idpVerificationCertLocation);
+            }
+            
+            if (certificate != null) {
+                return Saml2X509Credential.verification(certificate);
+            } else {
+                logger.debug("No IdP verification certificate configured");
+                return null;
+            }
+        } catch (Exception e) {
+            logger.error("Failed to load IdP verification certificate", e);
+            return null;
+        }
+    }
+    
+    /**
+     * 从文件加载X509证书
+     */
+    private X509Certificate loadCertificateFromFile(String certLocation) {
+        try {
+            Resource certResource;
+            if (certLocation.startsWith("classpath:")) {
+                certResource = new ClassPathResource(certLocation.substring("classpath:".length()));
+            } else if (certLocation.startsWith("file:")) {
+                certResource = new org.springframework.core.io.FileSystemResource(certLocation.substring("file:".length()));
+            } else {
+                certResource = new ClassPathResource(certLocation);
+            }
+            
+            if (!certResource.exists()) {
+                logger.warn("IdP certificate file not found: {}", certLocation);
+                return null;
+            }
+            
+            java.security.cert.CertificateFactory cf = java.security.cert.CertificateFactory.getInstance("X.509");
+            return (X509Certificate) cf.generateCertificate(certResource.getInputStream());
+        } catch (Exception e) {
+            logger.error("Failed to load certificate from file: " + certLocation, e);
             return null;
         }
     }
