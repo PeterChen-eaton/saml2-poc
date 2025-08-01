@@ -170,14 +170,9 @@
                     <webApp>
                         <contextPath>/</contextPath>
                     </webApp>
-                    
-                    <!-- 可选：通过系统属性启用HTTPS -->
-                    <systemProperties>
-                        <systemProperty>
-                            <name>org.eclipse.jetty.ssl.port</name>
-                            <value>8443</value>
-                        </systemProperty>
-                    </systemProperties>
+
+                    <deployMode>FORK</deployMode>
+                    <jvmArgs>-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=0.0.0.0:5005</jvmArgs>
                 </configuration>
             </plugin>
         </plugins>

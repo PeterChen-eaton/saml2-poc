@@ -5,8 +5,9 @@ import org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport;
 import org.opensaml.core.xml.io.Marshaller;
 import org.opensaml.core.xml.io.Unmarshaller;
 import org.opensaml.saml.saml2.metadata.EntityDescriptor;
-import org.opensaml.security.credential.BasicCredential;
+import org.opensaml.security.x509.BasicX509Credential;
 import org.opensaml.xmlsec.SignatureSigningParameters;
+import org.opensaml.xmlsec.keyinfo.impl.X509KeyInfoGeneratorFactory;
 import org.opensaml.xmlsec.signature.support.SignatureConstants;
 import org.opensaml.xmlsec.signature.support.SignatureSupport;
 import org.slf4j.Logger;
@@ -106,8 +107,8 @@ public class AdvancedSignedSaml2MetadataResolver {
             EntityDescriptor entityDescriptor = (EntityDescriptor) xmlObject;
 
             // 创建OpenSAML凭据
-            BasicCredential credential = new BasicCredential(
-                signingCredential.getCertificate().getPublicKey(),
+            BasicX509Credential credential = new BasicX509Credential(
+                signingCredential.getCertificate(),
                 signingCredential.getPrivateKey()
             );
 
@@ -117,6 +118,9 @@ public class AdvancedSignedSaml2MetadataResolver {
             signingParameters.setSignatureAlgorithm(SignatureConstants.ALGO_ID_SIGNATURE_RSA_SHA256);
             signingParameters.setSignatureCanonicalizationAlgorithm(SignatureConstants.ALGO_ID_C14N_EXCL_OMIT_COMMENTS);
             signingParameters.setSignatureReferenceDigestMethod(SignatureConstants.ALGO_ID_DIGEST_SHA256);
+            X509KeyInfoGeneratorFactory keyInfoGeneratorFactory = new X509KeyInfoGeneratorFactory();
+            keyInfoGeneratorFactory.setEmitEntityCertificate(true);
+            signingParameters.setKeyInfoGenerator(keyInfoGeneratorFactory.newInstance());
 
             // 对EntityDescriptor进行签名
             SignatureSupport.signObject(entityDescriptor, signingParameters);
